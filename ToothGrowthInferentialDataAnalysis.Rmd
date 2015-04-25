@@ -1,0 +1,299 @@
+---
+title: "ToothGrowth Inferential Data Analysis"
+author: "Elmar Langholz"
+date: "April 22, 2015"
+fontsize: 10pt
+geometry: margin=1in
+header-includes: \usepackage{graphicx}
+output:
+    pdf_document:
+        fig_caption: true
+---
+
+## Overview
+
+The [ToothGrowth](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/ToothGrowth.html) data set explores the *The Effect of Vitamin C on Tooth Growth in Guinea Pigs* on *10 guinea pigs* (see [Source](http://jn.nutrition.org/content/33/5/491.full.pdf)). We will perform inferential data analysis on it with the intent of comparing the tooth growth with the dose levels and the delivery methods to identify the impact of these.
+
+## Exploratory data analysis
+
+```{r setup,echo=FALSE,results='hide',warning=FALSE}
+enforceInstallAndLoadPackage <- function (package) {
+    if (!(package %in% rownames(installed.packages())) ) {
+        install.packages(package, repos = "http://cran.rstudio.com/")
+    }
+
+    library(package, character.only = TRUE)
+}
+
+enforceInstallAndLoadPackage("datasets")
+enforceInstallAndLoadPackage("plyr")
+enforceInstallAndLoadPackage("reshape2")
+enforceInstallAndLoadPackage("ggplot2")
+enforceInstallAndLoadPackage("pander")
+```
+
+```{r loadToothGrowthData,echo=FALSE}
+library(datasets); data(ToothGrowth); attach(ToothGrowth)
+```
+
+ After [loading the data](#loadData), the first thing we should do is a get a sense of the structure of the data set.
+
+```{r structureOfToothGrowthDataSet,echo=TRUE}
+str(ToothGrowth)
+```
+
+According the documentation we should expect the following varaibles defined in *Table 1* which holds true. In general, from this output, we can see that the observations are not directly tied to individual guinea pigs.
+
+Variable Names  | Description                              
+--------------- | ------------------------------------------------
+ supp           | The supplement type or delivery method.   
+ dose           | The dose in milligrams.                  
+ len            | The tooth (odontoblasts) length in micrometers.
+
+
+Table: Variables and description for the ToothGrowth data set
+
+
+```{r exploreSuppVariable,echo=FALSE,results='hide',ref.label="validateSupp"}
+```
+
+The `supp` variable is categorical and can have [only two values](#suppValidation): **`r as.character(suppValues[1])` or `r as.character(suppValues[2])`**. There are no missing values and are [equally distributed](#freqSuppVariable).
+
+```{r exploreDoseVariable,echo=FALSE,results='hide',ref.label="validateDose"}
+```
+
+Regarding the `dose` variable, it is also categorical and [complete](#doseValidation) because it only encompasses the following numerical values **`r as.character(doseValues[1])`, `r as.character(doseValues[2])` or `r as.character(doseValues[3])`**. We [convert](#convertDoseToFactor) it into a factor variable to facilitate grouping later on. These values are also [equally distributed](#freqDoseVariable) throughout the data set.
+
+```{r doseVariableAsFactor,echo=FALSE,results='hide',ref.label="convertDoseVariableToAFactor"}
+```
+```{r exploreLenVariable,echo=FALSE,results='hide',ref.label="lenVariableSummary"}
+```
+
+The `len` variable is the response. It is also [valid](#lenValidation) since it does not contain any negative or and complete because all of its values are present. In [summary](#lenSummary), the mean is of **`r as.character(lenSummary[3])` $\mu m$** and can acquire values **from `r as.character(lenSummary[1])` to `r as.character(lenSummary[6])` $\mu m$ (inclusive)**.
+
+Column name     | Type          | Values
+--------------- | ------------- | ----------------------------------------
+ supp           |  Categorical  | `r as.character(suppValues[1])` (ascorbin acid) or `r as.character(suppValues[2])` (orange juice) 
+ dose           |  Categorical  | `r as.character(doseValues[1])` mg, `r as.character(doseValues[2])` mg and `r as.character(doseValues[3])` mg
+ len            |  Response     | $\mu$ = `r as.character(lenSummary[3])` $\mu m$, range = [`r as.character(lenSummary[1])`, `r as.character(lenSummary[6])`] $\mu m$
+
+
+Table: Summary of the exploration of individual variables
+
+## Comparing tooth growth by supplement type and dosage
+
+Now that we have taken a look at the variables individually (see *Table 2*), lets look at how the categorical values interact with the response. The observations for the two categorical variables are [evenly distributed](#freqSuppAndDose) and their variances are unequal (see Appendix [10](#summaryLenBySupp), [1](#summaryLenByDose), [12](#summaryLenByDoseAndSupp)). Since the amount of observations is relatively low we will use [student's *t*-test](http://en.wikipedia.org/wiki/Student%27s_t-test) to perform any *non-paired* independent group sample tests and will analyze the [confidence intervals](https://en.wikipedia.org/wiki/Confidence_interval) to validate the observations.
+
+### Impact of supplement type in tooth length
+
+```{r plotEffectsOfLenghtBySupplementAndDose,echo=FALSE,fig.width=5,fig.height=3,fig.show='hold',fig.cap="Effects of tooth length by supplement and dosage"}
+plot1 <- ggplot(ToothGrowth, aes(x = supp, y = len, fill = supp))
+plot1 <- plot1 + geom_violin()
+plot1 <- plot1 + geom_boxplot(width = 0.1)
+plot1 <- plot1 + facet_grid(. ~ dose)
+plot1 <- plot1 + scale_x_discrete("Supplement type")
+plot1 <- plot1 + scale_y_continuous("Length of Teeth")
+plot1 <- plot1 + ggtitle("Dosage (mg)")
+plot1
+```
+
+```{r calculateSuppConfidenceIntervals,echo=FALSE,results='hide',ref.label="splitDataBySupplementType,suppTest,suppTestWithDoses"}
+```
+
+*Figure 1* shows that, on average, the orange juice delivery method has a higher length for dosages of 0.5 mg and 1.0 mg and for a dosage of 2.0 mg they are relatively the same. When we perform the group sample [tests](#suppTesting) of 95% confidence level, the interval is (`r as.character(round(suppConfInt[1], 5))`, `r as.character(round(suppConfInt[2], 5))`). Since the interval covers zero, we have an inconclusive test since we don't see a definitive influence from one over the other when not taking into account doses. Nonetheless, if we perform the [supplement type tests with doses](#suppTestingWithDoses) we are able to confirm through the confidence intervals (see *Table 3*) that the initial observation made is indeed correct because:
+
+1. For the tests with 0.5 mg and 1.0 mg doses, the 95% confidence intervals lower and upper bounds (`r as.character(round(suppByDoseConfInts[1, 1], 5))`, `r as.character(round(suppByDoseConfInts[2, 1], 5))`) and (`r as.character(round(suppByDoseConfInts[1, 2], 5))`, `r as.character(round(suppByDoseConfInts[2, 2], 5))`) are positive and do not touch zero. This means that the influence of the orange juice supplement type has a higher impact than that of ascorbin acid.
+2. For the test with the 2.0 mg dose, the 95% confidence intervals lower and upper bound (`r as.character(round(suppByDoseConfInts[1, 3], 5))`, `r as.character(round(suppByDoseConfInts[2, 3], 5))`) touches zero. This is an indication that the influence of either is inconclusive.
+
+```{r calculateSuppCIsWithDose,echo=FALSE,results='asis'}
+doseLevels <- levels(dose)
+suppByDoseCITable <- data.frame(Group1 = paste0(rep("$OJ_{", 3), doseLevels, "}$"),
+                                Group2 = paste0(rep("$VC_{", 3), doseLevels, "}$"),
+                                Lower = suppByDoseConfInts[1, ],
+                                Upper = suppByDoseConfInts[2, ])
+row.names(suppByDoseCITable) <- NULL 
+pandoc.table(suppByDoseCITable, style = "grid", caption = "Summary of Supplement Type By Dose 95% Confidence Intervals")
+```
+
+### Impact of dose in tooth length
+
+```{r plotEffectsOfLenghtByDoseAndSupplement,echo=FALSE,fig.width=5,fig.height=3,fig.show='hold',fig.cap="Effects of tooth length by dosage and supplement"}
+plot2 <- ggplot(ToothGrowth, aes(x = dose, y = len, fill = dose))
+plot2 <- plot2 + geom_violin()
+plot2 <- plot2 + geom_boxplot(width = 0.1)
+plot2 <- plot2 + facet_grid(. ~ supp)
+plot2 <- plot2 + scale_x_discrete("Dosage (mg)")
+plot2 <- plot2 + scale_y_continuous("Length of Teeth")
+plot2 <- plot2 + ggtitle("Supplement type")
+plot2
+```
+
+```{r calculateDoseConfidenceIntervals,echo=FALSE,results='hide',ref.label="doseTest"}
+```
+
+*Figure 2* shows that as we increase the dosage so does the odontoblasts length (independent of the supplement type). When we perform the group sample [tests](#doseTesting) of 95% confidence level the intervals shown in *Table 4* confirm the previously stated observation because in all of the three tests the intervals as less than zero. This means that the group on the right side is the one that has a higher impact for each test and has a higher dosage than the one on the left.
+
+```{r calculateDoseCIs,echo=FALSE,results='asis'}
+doseLevels <- levels(dose)
+doseCITable <- data.frame(Group1 = doseComparers[1, ],
+                          Group2 = doseComparers[2, ],
+                          Lower = doseConfInts[1, ],
+                          Upper = doseConfInts[2, ])
+row.names(doseCITable) <- NULL 
+pandoc.table(doseCITable, style = "grid", caption = "Summary of Dose 95% Confidence Intervals")
+```
+
+## Conclusion
+
+Assuming that:
+
+1. The guinea pigs were randomly selected and are impartial to any of the observed properties/attributes.
+2. The sample is representative of the population and no bias was introduced.
+3. There aren't any other properties/attributes influencing the length of the tooth besides the ones analyzed.
+4. The dose and delivery methods are independent from each other and in turn each have a different variance within the data set.
+
+We can conclude the following:
+
+1. On average, while the orange juice delivery method has a higher odontoblast length for dosages of 0.5 mgand 1.0 mg, for a dosage of 2.0 mg they are relatively the same and there is no clear influencer.
+2. As the dose increases, independent of the delivery method (e.g. orange juice or ascorbic acid), so does the odontoblasts length. 
+
+\newpage
+
+## Appendix
+
+### 1. Loading the data {#loadData}
+
+The ToothGrowth data set is provided by the [datasets package](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/00Index.html). We must load the *datasets* package, load the *ToothGrowth* data set and attach to it with the purpose of accessing the variables directly instead of having to reference them through the loaded data frame.
+
+```{r loadData,echo=TRUE,eval=FALSE}
+library(datasets); data(ToothGrowth); attach(ToothGrowth)
+```
+
+### 2. Supplement type validation {#suppValidation}
+
+```{r validateSupp,echo=TRUE}
+suppValues <- unique(supp); suppValues
+```
+
+### 3. Frequency of the supplement types variable {#freqSuppVariable}
+
+```{r suppFrequency,echo=FALSE,results='asis'}
+pandoc.table(as.data.frame(table(supp)), style = "grid", caption = "Frequency of the values of supp")
+```
+
+### 4. Dosage validation {#doseValidation}
+
+```{r validateDose,echo=TRUE}
+doseValues <- unique(dose); doseValues
+```
+
+### 5. Converting the dosage to a factor variable {#convertDoseToFactor} 
+
+```{r convertDoseVariableToAFactor,echo=TRUE}
+ToothGrowth$dose <- dose <- as.factor(dose)
+```
+
+### 6. Frequency of the dosage variable {#freqDoseVariable}
+
+```{r doseFrequency,echo=FALSE,results='asis'}
+pandoc.table(as.data.frame(table(dose)), style = "grid", caption = "Frequency of the values of dose")
+```
+
+### 7. Length validation {#lenValidation}
+
+```{r lenVariable,echo=TRUE}
+data.frame(hasNegativeValues = sum(len < 0) > 0, hasMissingValues = sum(is.na(len)) > 0)
+```
+
+### 8. Length summary {#lenSummary}
+
+```{r lenVariableSummary,echo=TRUE}
+lenSummary <- summary(len); lenSummary
+```
+
+### 9. Frequency of the supplement type and dosage variables {#freqSuppAndDose}
+
+```{r suppAndDoseFrequency,echo=FALSE,results='asis'}
+pandoc.table(as.data.frame(table(supp, dose)), style = "grid", caption = "Frequency of the values of supp and dose")
+```
+
+### 10. Summary of length by supplement type {#summaryLenBySupp}
+
+```{r summarizeLengthBySupplement,echo=FALSE,results='asis'}
+summaryBySupplement <- ddply(ToothGrowth, 
+                             .(supp), 
+                             summarize, 
+                             mean = mean(len), 
+                             sd = sd(len), 
+                             var = var(len))
+pandoc.table(summaryBySupplement, style = "grid", caption = "Summary of Tooth Length by Supplement Type")
+```
+
+### 11. Summary of length by dosage {#summaryLenByDose}
+
+```{r summarizeLengthByDose,echo=FALSE,results='asis'}
+summaryByDose <- ddply(ToothGrowth, 
+                       .(dose), 
+                       summarize, 
+                       mean = mean(len), 
+                       sd = sd(len), 
+                       var = var(len))
+pandoc.table(summaryByDose, style = "grid", caption = "Summary of Tooth Length by Dose")
+```
+
+### 12. Summary of length by dosage and supplement type {#summaryLenByDoseAndSupp}
+
+```{r summarizeLengthByDosageAndSupplement,echo=FALSE,results='asis'}
+summaryByDosageAndSupplement <- ddply(ToothGrowth, 
+                                      .(dose, supp), 
+                                      summarize, 
+                                      mean = mean(len), 
+                                      sd = sd(len), 
+                                      var = var(len))
+
+pandoc.table(summaryByDosageAndSupplement, style = "grid", caption = "Summary of Tooth Length by Dosage and Supplement")
+```
+
+### 13. Split data by supplement type {#splitDataBySupp}
+
+```{r splitDataBySupplementType,echo=TRUE}
+suppOJ <- subset(ToothGrowth, supp == "OJ"); suppVC <- subset(ToothGrowth, supp == "VC")
+```
+
+### 14. Supplement type testing {#suppTesting}
+
+```{r suppTestInclude,echo=FALSE,ref.label="splitDataBySupplementType"}
+```
+
+```{r suppTest,echo=TRUE}
+suppConfInt <- t.test(suppOJ$len, suppVC$len, paired = FALSE, var.equal = FALSE)$conf.int
+```
+
+### 15. Supplement type testing with doses {#suppTestingWithDoses}
+
+```{r suppTestWithDoses,echo=TRUE}
+suppByDoseConfInts <- vapply(levels(dose),
+                             function (d) {
+                                 confInt <- t.test(subset(suppOJ, dose == d)$len,
+                                                   subset(suppVC, dose == d)$len,
+                                                   paired = FALSE,
+                                                   var.equal = FALSE)$conf.int
+                                 c(confInt[1], confInt[2])
+                             },
+                             FUN.VALUE = numeric(2))
+```
+
+### 15. Dose testing {#doseTesting}
+
+```{r doseTest,echo=TRUE}
+doseComparers <- combn(levels(dose), 2)
+doseConfInts <- apply(doseComparers,
+                      2,
+                      function (doseSet) {
+                          confInt <- t.test(subset(ToothGrowth, dose == doseSet[1])$len,
+                                            subset(ToothGrowth, dose == doseSet[2])$len,
+                                            paired = FALSE,
+                                            var.equal = FALSE)$conf.int
+                          c(confInt[1], confInt[2])
+                      })
+```

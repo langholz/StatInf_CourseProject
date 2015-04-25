@@ -1,0 +1,190 @@
+---
+title: "Analysis of the Exponential Distribution and its relation to the Central Limit Theorem"
+author: "Elmar Langholz"
+date: "April 19, 2015"
+fontsize: 10pt
+geometry: margin=1in
+header-includes: \usepackage{graphicx}
+output:
+    pdf_document:
+        fig_caption: true
+---
+
+## Overview
+
+In this document, we will analyze the [exponential distribution](https://en.wikipedia.org/wiki/Exponential_distribution) (see [Appendix: Exponential distribution properties](#exponentialDistributionProperties)) and its relation with the [central limit theorem](https://en.wikipedia.org/wiki/Central_limit_theorem). We will compare, through simulation, the sample mean and variance with the theoretical mean and variance. Similarly, we will show that the distribution of averages is approximately normal.
+
+```{r setup,echo=FALSE,results='hide',warning=FALSE}
+enforceInstallAndLoadPackage <- function (package) {
+    if (!(package %in% rownames(installed.packages())) ) {
+        install.packages(package, repos = "http://cran.rstudio.com/")
+    }
+
+    library(package, character.only = TRUE)
+}
+
+enforceInstallAndLoadPackage("plyr")
+enforceInstallAndLoadPackage("ggplot2")
+```
+
+## Simulations
+
+In order to perform the exponential distribution simulations lets first define a helper function that will:
+
+1. Generate `sampleSize * simulationCount` exponentials with a rate of `lambda`.
+2. Organize these in `data.frame` of `simulationsCount` rows and `sampleSize` columns.
+3. Determine the `mean`, `var` and `sd` for each row.
+
+The return value will be a data frame of `simulationsCount` rows by `sampleSize + 3` columns. Each row is a simulation and the corresponding column indexes [1, sampleSize] (named X1 through XsampleSize) are the exponentials. Column indexes `sampleSize + 1`, `sampleSize + 2` and `sampleSize + 3` is the mean (named mean), variance (named var) and standard deviation (named sd) accordingly.
+
+```{r defineSimulationHelper,echo=TRUE}
+exponentialDistributionSimulation <- function (lambda, sampleSize, simulationsCount = 1) {
+    simulations <- rexp(sampleSize * simulationsCount, rate = lambda)
+    simulations <- matrix(simulations, simulationsCount)
+    indexes <- 1:sampleSize
+    simulationsMean <- apply(simulations[, indexes], 1, mean)
+    simulationsVariance <- apply(simulations[, indexes], 1, var)
+    simulationsStandardDeviation <- apply(simulations[, indexes], 1, sd)
+    simulations <- data.frame(simulations,
+                              mean = simulationsMean,
+                              var = simulationsVariance,
+                              sd = simulationsStandardDeviation)
+    simulations
+}
+```
+
+For the simulations, lets assume that the rate is $\lambda$ = $\frac{1}{5}$ (0.2). We will perform one thousand simulations (1,000) each with a sample size of fourty (40) exponentials.
+
+```{r performSimulation,echo=TRUE}
+seed <- 31337
+set.seed(seed)              # make this reproducible by others
+lambda <- 1/5               # the exponential rate
+sampleSize <- 40            # the sample size
+simulationsCount <- 1000    # the number of simulations
+simulations <- exponentialDistributionSimulation(lambda, sampleSize, simulationsCount)
+```
+
+## Sample Mean versus Theoretical Mean
+
+Given $\lambda$ = $\frac{1}{5}$, the theoretical mean of the exponential distribution is defined as $E[X_{i}]$ = $\frac{1}{\lambda}$ = $\frac{1}{\frac{1}{5}}$.
+
+```{r calculateMeanTheoretical,echo=TRUE}
+meanTheoretical <- 1 / lambda
+```
+
+The simulated sample mean is defined as the mean of the sample mean of all simulations. 
+
+```{r calculateMeanSample,echo=TRUE}
+meanSample <- mean(simulations$mean)
+```
+
+```{r meanComparison,echo=FALSE,fig.width=5,fig.height=3,fig.show='hold',fig.cap="The simulated sample histogram and density with the sample and theoretical mean"}
+vLineCuts <- data.frame(meanType = c("Theoretical", "Sample"),
+                        cuts = c(meanTheoretical, meanSample))
+plot <- ggplot(simulations, aes(x = mean))
+plot <- plot + geom_histogram(aes(y = ..density..),
+                              binwidth = 0.25,
+                              colour = "black",
+                              fill = "white")
+plot <- plot + geom_density(alpha = 0.1, fill = "black")
+plot <- plot + geom_vline(data = vLineCuts,
+                          aes(xintercept = cuts, colour = meanType),
+                          show_guide = TRUE)
+plot <- plot + ggtitle("Sample vs. Theoretical Mean")
+plot
+```
+
+When we compare these two, we are able to see that while the **theoretical mean is `r as.character(round(meanTheoretical, 4))`**, the **sample mean is `r as.character(round(meanSample, 4))`**. Just as shown in *Figure 1*, the theoretical and sample mean are very close together and in fact **these two diverge by `r as.character(round(abs(meanTheoretical - meanSample), 4))`**.
+
+## Sample Variance versus Theoretical Variance
+
+Since standard deviation is easier to compare to the mean because it is on the same scale, we will use this instead of the variance. Given $Var[X_{i}]$ = $\frac{\sigma^2}{n}$ and $\sigma$ = $\frac{1}{\lambda}$, the theoretical standard deviation of averages is defined as $Sd[X_{i}]$ = $\sqrt{\frac{\sigma^2}{n}}$ = $\frac{\frac{1}{\lambda}}{\sqrt{n}}$ = $\frac{1}{\lambda\sqrt{n}}$
+
+```{r calculateStandardDeviationTheoretical,echo=TRUE}
+standardDeviationTheoretical <-  1 / (lambda * sqrt(sampleSize))
+```
+
+The simulated sample standard deviation of the mean sample distribution is defined as the standard deviation of the sample mean of all simulations. 
+
+```{r calculateStandardDeviationSample,echo=TRUE}
+standardDeviationSample <- sd(simulations$mean)
+```
+
+```{r standardDeviationComparison,echo=FALSE,fig.width=5,fig.height=3,fig.show='hold',fig.cap="The simulated sample and theoretical mean and mean (SD) [mean - sd, mean + sd] comparison"}
+# min, mean - sd, mean, mean + sd, max
+theoreticalSummary <- c(rep(meanTheoretical - standardDeviationTheoretical, 2),
+                        meanTheoretical,
+                        rep(meanTheoretical + standardDeviationTheoretical, 2))
+sampleSummary <- c(min(simulations$mean),
+                   meanSample - standardDeviationSample,
+                   meanSample,
+                   meanSample + standardDeviationSample,
+                   max(simulations$mean))
+dataSummary <- matrix(c(theoreticalSummary, sampleSummary), 5, 2)
+z <- list(stats = dataSummary, n = rep(1, ncol(dataSummary)))
+bxp(z,
+    axes = FALSE,
+    xlab = "Distribution type",
+    main = "Sample vs. Theoretical Standard Deviation")
+axis(1, at = 0:3, labels = c("", "Theoretical", "Sample", ""))
+axis(2, at = seq(floor(sampleSummary[1]),ceiling(sampleSummary[5]), 0.5))
+```
+
+When we compare these two, we are able to see that while the **theoretical standard deviation is `r as.character(round(standardDeviationTheoretical, 4))`**, the **sample standard deviation is `r as.character(round(standardDeviationSample, 4))`**. Through *Figure 2* we are able to compare these through a boxplot and demonstrate that the theoretical and sample standard deviation (and therefore variances) are very close together and in fact **these two diverge by `r as.character(round(abs(standardDeviationTheoretical - standardDeviationSample), 4))`**.
+
+For completeness, the theoretical variance can be calculated as $Var[X_{1}]$ = $\frac{\frac{1}{\lambda^2}}{n}$ = $\frac{1}{n\lambda^2}$ and the sample variance is the variance of all the sample means.
+
+```{r calculateVariance,echo=TRUE}
+varianceTheoretical <-  1 / (sampleSize * lambda^2)
+varianceSample <- var(simulations$mean)
+```
+
+The **theoretical variance is `r as.character(round(varianceTheoretical, 4))`** and the **sample variance is `r as.character(round(varianceSample, 4))`**. They **diverge by `r as.character(round(abs(varianceTheoretical - varianceSample), 4))`**
+
+## Distribution
+
+To validate that the distribution of the sample means is well-modeled by a normal distribution, lets compare the mean histogram with the sample mean distribution and the theoretical distribution $N(\frac{1}{\lambda}$, $\frac{1}{n\lambda^2})$.
+
+```{r compareMeanWithNormal,echo=FALSE,fig.width=5,fig.height=3,fig.show='hold',fig.cap="The sample vs. the theoretical distribution shows that these are very close to the normal distrubtion"}
+vLineCuts <- data.frame(meanType = c("Theoretical", "Sample"),
+                        cuts = c(meanTheoretical, meanSample))
+plot1 <- ggplot(simulations, aes(x = mean))
+plot1 <- plot1 + geom_histogram(aes(y = ..density..),
+                                binwidth = 0.25,
+                                colour = "black",
+                                fill = "white")
+plot1 <- plot1 + stat_function(fun = dnorm,
+                               colour = "red",
+                               arg = list(mean = meanTheoretical, sd = standardDeviationTheoretical))
+plot1 <- plot1 + stat_function(fun = dnorm,
+                               colour = "blue",
+                               arg = list(mean = meanSample, sd = standardDeviationSample))
+plot1 <- plot1 + geom_vline(data = vLineCuts,
+                            aes(xintercept = cuts, colour = meanType),
+                            show_guide = TRUE)
+plot1 <- plot1 + scale_colour_manual(values = c("Theoretical" = "red", "Sample" = "blue"))
+plot1 <- plot1 + ggtitle("Sample vs. Theoretical Distribution")
+plot1
+```
+
+Visually comparing these, both curves and the histogram match up. Therefore we can say that *the sampling distribution of the sample mean approximates the normal distribution*. To further land this point we also include a [Q-Q plot](http://en.wikipedia.org/wiki/Q%E2%80%93Q_plot) in [Appendix: Q-Q Plot for the sampling distribution](#qqplotForSamplingDistribution).
+
+\newpage
+
+## Appendix
+
+### Exponential distribution properties {#exponentialDistributionProperties}
+
+  *  The mean $\mu$ is defined as $\frac{1}{\lambda}$.
+  *  The variance $\sigma^2$ is defined as $\frac{1}{\lambda^2}$.
+  *  The standard deviation $\sigma$ is defined as $\frac{1}{\lambda}$
+
+The exponential distribution can be simulated in R with `rexp(n, lambda)` where lambda is the rate parameter.
+
+### Q-Q Plot for the sampling distribution {#qqplotForSamplingDistribution}
+
+```{r qqPlot,echo=FALSE,fig.width=5,fig.height=3,fig.show='hold',fig.cap="The Q-Q plot of the sampling mean in which the linearity of the points suggests that the data is normally distributed"}
+means <- (simulations$mean - meanTheoretical) / standardDeviationTheoretical
+qqnorm(means, pch = ".", col = "blue")
+qqline(means, col = "red", lw = 0.5)
+```
