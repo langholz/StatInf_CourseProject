@@ -82,7 +82,7 @@ Table: Summary of the exploration of individual variables
 
 ## Comparing tooth growth by supplement type and dosage
 
-Now that we have taken a look at the variables individually (see *Table 2*), lets look at how the categorical values interact with the response. The observations for the two categorical variables are [evenly distributed](#freqSuppAndDose) and their variances are unequal (see Appendix [10](#summaryLenBySupp), [1](#summaryLenByDose), [12](#summaryLenByDoseAndSupp)). Since the amount of observations is relatively low we will use [student's *t*-test](http://en.wikipedia.org/wiki/Student%27s_t-test) to perform any *non-paired* independent group sample tests and will analyze the [confidence intervals](https://en.wikipedia.org/wiki/Confidence_interval) to validate the observations.
+Now that we have taken a look at the variables individually (see *Table 2*), lets look at how the categorical values interact with the response. The observations for the two categorical variables are [evenly distributed](#freqSuppAndDose) and their variances are unequal (see Appendix [10](#summaryLenBySupp), [11](#summaryLenByDose), [12](#summaryLenByDoseAndSupp)). Since the amount of observations is relatively low we will use [student's *t*-test](http://en.wikipedia.org/wiki/Student%27s_t-test) to perform any *non-paired* independent group sample tests and will analyze the [confidence intervals](https://en.wikipedia.org/wiki/Confidence_interval) to validate the observations.
 
 ### Impact of supplement type in tooth length
 
@@ -100,10 +100,10 @@ plot1
 ```{r calculateSuppConfidenceIntervals,echo=FALSE,results='hide',ref.label="splitDataBySupplementType,suppTest,suppTestWithDoses"}
 ```
 
-*Figure 1* shows that, on average, the orange juice delivery method has a higher length for dosages of 0.5 mg and 1.0 mg and for a dosage of 2.0 mg they are relatively the same. When we perform the group sample [tests](#suppTesting) of 95% confidence level, the interval is (`r as.character(round(suppConfInt[1], 5))`, `r as.character(round(suppConfInt[2], 5))`). Since the interval covers zero, we have an inconclusive test since we don't see a definitive influence from one over the other when not taking into account doses. Nonetheless, if we perform the [supplement type tests with doses](#suppTestingWithDoses) we are able to confirm through the confidence intervals (see *Table 3*) that the initial observation made is indeed correct because:
+*Figure 1* shows that, on average, the orange juice delivery method has a higher length for dosages of 0.5 mg and 1.0 mg and for a dosage of 2.0 mg they are relatively the same. When we perform the group sample [tests](#suppTesting) of 95% confidence level, the interval is (`r as.character(round(suppConfInt[1], 5))`, `r as.character(round(suppConfInt[2], 5))`). Since the interval covers zero, we can't reject the claim that the two groups are the same when not taking into account doses. Nonetheless, if we perform the [supplement type tests with doses](#suppTestingWithDoses) we are able to confirm through the confidence intervals (see *Table 3*) that the initial observation made is indeed correct because:
 
 1. For the tests with 0.5 mg and 1.0 mg doses, the 95% confidence intervals lower and upper bounds (`r as.character(round(suppByDoseConfInts[1, 1], 5))`, `r as.character(round(suppByDoseConfInts[2, 1], 5))`) and (`r as.character(round(suppByDoseConfInts[1, 2], 5))`, `r as.character(round(suppByDoseConfInts[2, 2], 5))`) are positive and do not touch zero. This means that the influence of the orange juice supplement type has a higher impact than that of ascorbin acid.
-2. For the test with the 2.0 mg dose, the 95% confidence intervals lower and upper bound (`r as.character(round(suppByDoseConfInts[1, 3], 5))`, `r as.character(round(suppByDoseConfInts[2, 3], 5))`) touches zero. This is an indication that the influence of either is inconclusive.
+2. For the test with the 2.0 mg dose, the 95% confidence intervals lower and upper bound (`r as.character(round(suppByDoseConfInts[1, 3], 5))`, `r as.character(round(suppByDoseConfInts[2, 3], 5))`) touches zero. This is an indication that we can't reject the claim that the two groups are the same.
 
 ```{r calculateSuppCIsWithDose,echo=FALSE,results='asis'}
 doseLevels <- levels(dose)
@@ -152,7 +152,7 @@ Assuming that:
 3. There aren't any other properties/attributes influencing the length of the tooth besides the ones analyzed.
 4. The dose and delivery methods are independent from each other and in turn each have a different variance within the data set.
 
-We can conclude the following:
+We can conclude the following with a 0.95 probability:
 
 1. On average, while the orange juice delivery method has a higher odontoblast length for dosages of 0.5 mgand 1.0 mg, for a dosage of 2.0 mg they are relatively the same and there is no clear influencer.
 2. As the dose increases, independent of the delivery method (e.g. orange juice or ascorbic acid), so does the odontoblasts length. 

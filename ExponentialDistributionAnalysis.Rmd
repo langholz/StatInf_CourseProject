@@ -139,7 +139,7 @@ varianceTheoretical <-  1 / (sampleSize * lambda^2)
 varianceSample <- var(simulations$mean)
 ```
 
-The **theoretical variance is `r as.character(round(varianceTheoretical, 4))`** and the **sample variance is `r as.character(round(varianceSample, 4))`**. They **diverge by `r as.character(round(abs(varianceTheoretical - varianceSample), 4))`**
+The **theoretical variance is `r as.character(round(varianceTheoretical, 4))`** and the **sample variance is `r as.character(round(varianceSample, 4))`**. They **diverge by `r as.character(round(abs(varianceTheoretical - varianceSample), 4))`**.
 
 ## Distribution
 
